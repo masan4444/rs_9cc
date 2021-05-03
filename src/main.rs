@@ -1,4 +1,5 @@
-use std::{env, error::Error, iter::Peekable};
+use rs_9cc::strtol;
+use std::{env, error::Error};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<_> = env::args().collect();
@@ -22,18 +23,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     println!("  ret");
     Ok(())
-}
-
-fn strtol<I: Iterator<Item = char>>(iter: &mut Peekable<I>, radix: u32) -> Option<u32> {
-    let mut init = iter.peek()?.to_digit(radix)?;
-    iter.next();
-    while let Some(c) = iter.peek() {
-        if let Some(n) = c.to_digit(radix) {
-            init = init * radix + n;
-            iter.next();
-        } else {
-            break;
-        }
-    }
-    Some(init)
 }
