@@ -13,11 +13,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("main:");
     println!("  mov rax, {}", strtol(&mut chars, 10).unwrap());
 
-    while let Some(n) = chars.next() {
-        match n {
+    while let Some(sign) = chars.next() {
+        match sign {
             '+' => println!("  add rax, {}", strtol(&mut chars, 10).unwrap()),
             '-' => println!("  sub rax, {}", strtol(&mut chars, 10).unwrap()),
-            _ => return Err("invalid char")?,
+            c => return Err(format!("invalid char: {}", c))?,
         }
     }
     println!("  ret");
