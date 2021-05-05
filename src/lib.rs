@@ -1,3 +1,9 @@
+mod ast;
+mod lex;
+
+pub use ast::{Error as AstError, TokenIter};
+pub use lex::{tokenize, Error as LexError, Token, TokenKind};
+
 use std::iter::Peekable;
 
 pub fn strtol<I: Iterator<Item = char>>(iter: &mut Peekable<I>, radix: u32) -> Option<u32> {
