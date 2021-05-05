@@ -1,9 +1,5 @@
-use rs_9cc::{tokenize, AstError, LexError, TokenIter, TokenKind};
-use std::{
-    env,
-    fmt::{self, Display},
-    process,
-};
+use rs_9cc::{tokenize, AstError, Error, TokenIter, TokenKind};
+use std::{env, process};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args().collect();
@@ -19,35 +15,6 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
-
-#[derive(Debug)]
-enum Error {
-    Lexer(LexError),
-    Parser(AstError),
-}
-
-impl From<AstError> for Error {
-    fn from(e: AstError) -> Self {
-        Error::Parser(e)
-    }
-}
-
-impl From<LexError> for Error {
-    fn from(e: LexError) -> Self {
-        Error::Lexer(e)
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Lexer(e) => e.fmt(f),
-            Error::Parser(e) => e.fmt(f),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
 
 fn run(s: &str) -> std::result::Result<String, Error> {
     let tokens = tokenize(s)?;

@@ -1,7 +1,9 @@
 mod ast;
+mod error;
 mod lex;
 
 pub use ast::{Error as AstError, TokenIter};
+pub use error::Error;
 pub use lex::{tokenize, Error as LexError, Token, TokenKind};
 
 use std::iter::Peekable;
