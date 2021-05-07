@@ -14,17 +14,9 @@ pub fn tokenize(s: &str) -> std::result::Result<LinkedList<Token>, Error> {
                 _ => return Err(e),
             },
             Ok(b) => match b {
-                b'0'..=b'9' => {
-                    let token = lex_number(&mut input)?;
-                    tokens.push_back(token);
-                }
-                b'+' => {
-                    let token = lex_plus(&mut input)?;
-                    tokens.push_back(token);
-                }
-                b'-' => {
-                    let token = lex_minus(&mut input)?;
-                    tokens.push_back(token);
+                b'0'..=b'9' => tokens.push_back(lex_number(&mut input)?),
+                b'+' | b'-' | b'*' | b'/' | b'(' | b')' => {
+                    tokens.push_back(lex_byte(&mut input, b)?)
                 }
                 b' ' => input.consume_spaces(),
                 _ => {
@@ -43,15 +35,10 @@ fn lex_number(input: &mut Input) -> Result<Token> {
         .consume_numbers()
         .map(|(pos, n)| Token::new(TokenKind::Number(n), pos..input.pos()))
 }
-fn lex_plus(input: &mut Input) -> Result<Token> {
+fn lex_byte(input: &mut Input, b: u8) -> Result<Token> {
     input
-        .consume_byte(b'+')
-        .map(|pos| Token::new(TokenKind::Plus, pos..input.pos()))
-}
-fn lex_minus(input: &mut Input) -> Result<Token> {
-    input
-        .consume_byte(b'-')
-        .map(|pos| Token::new(TokenKind::Minus, pos..input.pos()))
+        .consume_byte(b)
+        .map(|pos| Token::new(b.into(), pos..input.pos()))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -112,7 +99,26 @@ pub enum TokenKind {
     Number(u64),
     Plus,
     Minus,
+    Asterisk,
+    Slash,
+    LParen,
+    RParen,
     Eof,
+}
+
+impl From<u8> for TokenKind {
+    fn from(value: u8) -> Self {
+        use TokenKind::*;
+        match value {
+            b'+' => Plus,
+            b'-' => Minus,
+            b'*' => Asterisk,
+            b'/' => Slash,
+            b'(' => LParen,
+            b')' => RParen,
+            _ => Eof,
+        }
+    }
 }
 
 pub type Token = Annot<TokenKind>;
@@ -123,6 +129,9 @@ impl Token {
             kind: token_kind,
             loc: loc.into(),
         }
+    }
+    pub fn loc(&self) -> Range<usize> {
+        self.loc.0..self.loc.1
     }
     fn eof(loc: impl Into<Loc>) -> Self {
         Token {

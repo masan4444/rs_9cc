@@ -9,30 +9,125 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "parser error")
+        match self {
+            Error::Eof => write!(f, "Eof"),
+            Error::UnexpectedToken(token) => {
+                let loc = token.loc();
+                let padd = " ".repeat(loc.start);
+                let allow = "^".repeat(loc.end - loc.start);
+                write!(f, "{}{} unexpected token {:?}", padd, allow, token)
+            }
+        }
     }
 }
 impl std::error::Error for Error {}
 
+type Result<T> = std::result::Result<T, Error>;
+
 pub struct TokenIter<I: Iterator<Item = Token>>(Peekable<I>);
+
 impl<I: Iterator<Item = Token>> TokenIter<I> {
     pub fn new(p: Peekable<I>) -> Self {
         Self(p)
     }
-    pub fn expect_number(&mut self) -> std::result::Result<u64, Error> {
-        let token = self.0.peek().ok_or(Error::Eof)?;
+    fn peek(&mut self) -> Result<Token> {
+        Ok(*self.0.peek().ok_or(Error::Eof)?)
+    }
+    pub fn expect_number(&mut self) -> Result<u64> {
+        let token = self.peek()?;
         match token.kind {
             TokenKind::Number(n) => {
                 self.0.next();
-                return Ok(n);
+                Ok(n)
             }
-            _ => return Err(Error::UnexpectedToken(*token)),
+            _ => Err(Error::UnexpectedToken(token)),
+        }
+    }
+    pub fn expect_byte(&mut self, b: u8) -> Result<()> {
+        let token = self.peek()?;
+        if token.kind == TokenKind::from(b) {
+            self.0.next();
+            Ok(())
+        } else {
+            Err(Error::UnexpectedToken(token))
         }
     }
 }
+
 impl<I: Iterator<Item = Token>> Iterator for TokenIter<I> {
     type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+}
+
+#[derive(Debug)]
+enum NodeKind {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Num(u64),
+}
+#[derive(Debug)]
+pub struct Node {
+    kind: NodeKind,
+    lhs: Option<Box<Node>>,
+    rhs: Option<Box<Node>>,
+}
+
+impl Node {
+    fn new(kind: NodeKind, lhs: Node, rhs: Node) -> Self {
+        Self {
+            kind,
+            lhs: Some(Box::new(lhs)),
+            rhs: Some(Box::new(rhs)),
+        }
+    }
+    fn new_num(n: u64) -> Self {
+        Self {
+            kind: NodeKind::Num(n),
+            lhs: None,
+            rhs: None,
+        }
+    }
+    pub fn expr<I: Iterator<Item = Token>>(tokens: &mut TokenIter<I>) -> Result<Self> {
+        let mut node = Node::mul(tokens)?;
+        loop {
+            if let Ok(_) = tokens.expect_byte(b'+') {
+                node = Node::new(NodeKind::Add, node, Node::mul(tokens)?);
+            } else if let Ok(_) = tokens.expect_byte(b'-') {
+                node = Node::new(NodeKind::Sub, node, Node::mul(tokens)?);
+            } else {
+                return Ok(node);
+            }
+        }
+    }
+    fn mul<I: Iterator<Item = Token>>(tokens: &mut TokenIter<I>) -> Result<Self> {
+        let mut node = Node::primary(tokens)?;
+        loop {
+            if let Ok(_) = tokens.expect_byte(b'*') {
+                node = Node::new(NodeKind::Mul, node, Node::primary(tokens)?);
+            } else if let Ok(_) = tokens.expect_byte(b'/') {
+                node = Node::new(NodeKind::Div, node, Node::primary(tokens)?);
+            } else {
+                return Ok(node);
+            }
+        }
+    }
+    fn primary<I: Iterator<Item = Token>>(tokens: &mut TokenIter<I>) -> Result<Self> {
+        if let Ok(_) = tokens.expect_byte(b'(') {
+            let node = Node::expr(tokens)?;
+            tokens.expect_byte(b')')?;
+            return Ok(node);
+        } else {
+            let node = Node::new_num(tokens.expect_number()?);
+            return Ok(node);
+        }
+    }
+}
+
+pub fn parse<I: Iterator<Item = Token>>(tokens: Peekable<I>) -> Result<Node> {
+    let mut token_iter = TokenIter::new(tokens);
+    Node::expr(&mut token_iter)
 }
