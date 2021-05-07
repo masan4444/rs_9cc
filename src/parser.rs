@@ -23,17 +23,19 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 type Result<T> = std::result::Result<T, Error>;
-
 pub struct TokenIter<I: Iterator<Item = Token>>(Peekable<I>);
 
-impl<I: Iterator<Item = Token>> TokenIter<I> {
-    pub fn new(p: Peekable<I>) -> Self {
-        Self(p)
-    }
+pub trait TokenIterator: Iterator<Item = Token> {
+    fn peek(&mut self) -> Result<Token>;
+    fn expect_number(&mut self) -> Result<u64>;
+    fn expect_byte(&mut self, b: u8) -> Result<()>;
+}
+
+impl<I: Iterator<Item = Token>> TokenIterator for TokenIter<I> {
     fn peek(&mut self) -> Result<Token> {
         Ok(*self.0.peek().ok_or(Error::Eof)?)
     }
-    pub fn expect_number(&mut self) -> Result<u64> {
+    fn expect_number(&mut self) -> Result<u64> {
         let token = self.peek()?;
         match token.kind {
             TokenKind::Number(n) => {
@@ -43,7 +45,7 @@ impl<I: Iterator<Item = Token>> TokenIter<I> {
             _ => Err(Error::UnexpectedToken(token)),
         }
     }
-    pub fn expect_byte(&mut self, b: u8) -> Result<()> {
+    fn expect_byte(&mut self, b: u8) -> Result<()> {
         let token = self.peek()?;
         if token.kind == TokenKind::from(b) {
             self.0.next();
@@ -51,6 +53,12 @@ impl<I: Iterator<Item = Token>> TokenIter<I> {
         } else {
             Err(Error::UnexpectedToken(token))
         }
+    }
+}
+
+impl<I: Iterator<Item = Token>> TokenIter<I> {
+    pub fn new(p: Peekable<I>) -> Self {
+        Self(p)
     }
 }
 
@@ -91,7 +99,7 @@ impl Node {
             rhs: None,
         }
     }
-    pub fn expr<I: Iterator<Item = Token>>(tokens: &mut TokenIter<I>) -> Result<Self> {
+    pub fn expr(tokens: &mut impl TokenIterator) -> Result<Self> {
         let mut node = Node::mul(tokens)?;
         loop {
             if let Ok(_) = tokens.expect_byte(b'+') {
@@ -103,19 +111,19 @@ impl Node {
             }
         }
     }
-    fn mul<I: Iterator<Item = Token>>(tokens: &mut TokenIter<I>) -> Result<Self> {
-        let mut node = Node::primary(tokens)?;
+    fn mul(tokens: &mut impl TokenIterator) -> Result<Self> {
+        let mut node = Node::unary(tokens)?;
         loop {
             if let Ok(_) = tokens.expect_byte(b'*') {
-                node = Node::new(NodeKind::Mul, node, Node::primary(tokens)?);
+                node = Node::new(NodeKind::Mul, node, Node::unary(tokens)?);
             } else if let Ok(_) = tokens.expect_byte(b'/') {
-                node = Node::new(NodeKind::Div, node, Node::primary(tokens)?);
+                node = Node::new(NodeKind::Div, node, Node::unary(tokens)?);
             } else {
                 return Ok(node);
             }
         }
     }
-    fn primary<I: Iterator<Item = Token>>(tokens: &mut TokenIter<I>) -> Result<Self> {
+    fn primary(tokens: &mut impl TokenIterator) -> Result<Self> {
         if let Ok(_) = tokens.expect_byte(b'(') {
             let node = Node::expr(tokens)?;
             tokens.expect_byte(b')')?;
@@ -123,6 +131,19 @@ impl Node {
         } else {
             let node = Node::new_num(tokens.expect_number()?);
             return Ok(node);
+        }
+    }
+    fn unary(tokens: &mut impl TokenIterator) -> Result<Self> {
+        if let Ok(_) = tokens.expect_byte(b'+') {
+            return Node::primary(tokens);
+        } else if let Ok(_) = tokens.expect_byte(b'-') {
+            return Ok(Node::new(
+                NodeKind::Sub,
+                Node::new_num(0),
+                Node::primary(tokens)?,
+            ));
+        } else {
+            return Node::primary(tokens);
         }
     }
 }
