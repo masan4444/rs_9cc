@@ -1,14 +1,14 @@
-use crate::{AstError, LexError};
+use crate::{LexError, ParseError};
 use std::fmt;
 
 #[derive(Debug)]
 pub enum Error {
     Lexer(LexError),
-    Parser(AstError),
+    Parser(ParseError),
 }
 
-impl From<AstError> for Error {
-    fn from(e: AstError) -> Self {
+impl From<ParseError> for Error {
+    fn from(e: ParseError) -> Self {
         Error::Parser(e)
     }
 }
