@@ -1,4 +1,4 @@
-use rs_9cc::{parse, tokenize, Error};
+use rs_9cc::{parse, tokenize, Error, Node};
 use std::{env, process};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

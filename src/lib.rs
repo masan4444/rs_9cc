@@ -1,13 +1,13 @@
-mod ast;
 mod error;
-mod lex;
+mod generator;
+mod lexer;
+mod parser;
 
-pub use ast::{parse, Error as AstError, TokenIter};
 pub use error::Error;
-pub use lex::{tokenize, Error as LexError, Token, TokenKind};
+pub use lexer::{tokenize, Error as LexError, Token, TokenKind};
+pub use parser::{parse, Error as AstError, Node, TokenIter};
 
 use std::iter::Peekable;
-
 pub fn strtol<I: Iterator<Item = char>>(iter: &mut Peekable<I>, radix: u32) -> Option<u32> {
     let mut init = iter.peek()?.to_digit(radix)?;
     iter.next();
