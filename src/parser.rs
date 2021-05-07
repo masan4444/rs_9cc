@@ -56,8 +56,8 @@ impl<I: Iterator<Item = Token>> TokenIterator for TokenIter<I> {
     }
 }
 
-impl<I: Iterator<Item = Token>> TokenIter<I> {
-    pub fn new(p: Peekable<I>) -> Self {
+impl<I: Iterator<Item = Token>> From<Peekable<I>> for TokenIter<I> {
+    fn from(p: Peekable<I>) -> Self {
         Self(p)
     }
 }
@@ -149,6 +149,6 @@ impl Node {
 }
 
 pub fn parse<I: Iterator<Item = Token>>(tokens: Peekable<I>) -> Result<Node> {
-    let mut token_iter = TokenIter::new(tokens);
+    let mut token_iter: TokenIter<I> = tokens.into();
     Node::expr(&mut token_iter)
 }
