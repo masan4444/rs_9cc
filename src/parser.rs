@@ -23,9 +23,9 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 type Result<T> = std::result::Result<T, Error>;
-pub struct TokenIter<I: Iterator<Item = Token>>(Peekable<I>);
+struct TokenIter<I: Iterator<Item = Token>>(Peekable<I>);
 
-pub trait TokenIterator: Iterator<Item = Token> {
+trait TokenIterator: Iterator<Item = Token> {
     fn peek(&mut self) -> Result<Token>;
     fn expect_number(&mut self) -> Result<u64>;
     fn expect_byte(&mut self, b: u8) -> Result<()>;
@@ -99,7 +99,7 @@ impl Node {
             rhs: None,
         }
     }
-    pub fn expr(tokens: &mut impl TokenIterator) -> Result<Self> {
+    fn expr(tokens: &mut impl TokenIterator) -> Result<Self> {
         let mut node = Node::mul(tokens)?;
         loop {
             if let Ok(_) = tokens.expect_byte(b'+') {

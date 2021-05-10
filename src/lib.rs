@@ -6,7 +6,7 @@ mod parser;
 pub use error::Error;
 pub use generator::generate;
 pub use lexer::{tokenize, Error as LexError, Token, TokenKind};
-pub use parser::{parse, Error as ParseError, Node, NodeKind, TokenIter};
+pub use parser::{parse, Error as ParseError, Node, NodeKind};
 
 use std::iter::Peekable;
 pub fn strtol<I: Iterator<Item = char>>(iter: &mut Peekable<I>, radix: u32) -> Option<u32> {
