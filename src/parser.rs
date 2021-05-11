@@ -75,6 +75,10 @@ pub enum NodeKind {
     Sub,
     Mul,
     Div,
+    Eq,
+    Neq,
+    Lt,
+    Leq,
     Num(u64),
 }
 #[derive(Debug)]
@@ -100,6 +104,37 @@ impl Node {
         }
     }
     fn expr(tokens: &mut impl TokenIterator) -> Result<Self> {
+        Node::equality(tokens)
+    }
+    fn equality(tokens: &mut impl TokenIterator) -> Result<Self> {
+        let mut node = Node::relational(tokens)?;
+        loop {
+            if let Ok(_) = tokens.expect_token(TokenKind::Eq) {
+                node = Node::new(NodeKind::Eq, node, Node::relational(tokens)?)
+            } else if let Ok(_) = tokens.expect_token(TokenKind::Neq) {
+                node = Node::new(NodeKind::Neq, node, Node::relational(tokens)?);
+            } else {
+                return Ok(node);
+            }
+        }
+    }
+    fn relational(tokens: &mut impl TokenIterator) -> Result<Self> {
+        let mut node = Node::add(tokens)?;
+        loop {
+            if let Ok(_) = tokens.expect_token(TokenKind::Lt) {
+                node = Node::new(NodeKind::Lt, node, Node::add(tokens)?)
+            } else if let Ok(_) = tokens.expect_token(TokenKind::Leq) {
+                node = Node::new(NodeKind::Leq, node, Node::add(tokens)?);
+            } else if let Ok(_) = tokens.expect_token(TokenKind::Gt) {
+                node = Node::new(NodeKind::Lt, Node::add(tokens)?, node);
+            } else if let Ok(_) = tokens.expect_token(TokenKind::Geq) {
+                node = Node::new(NodeKind::Leq, Node::add(tokens)?, node);
+            } else {
+                return Ok(node);
+            }
+        }
+    }
+    fn add(tokens: &mut impl TokenIterator) -> Result<Self> {
         let mut node = Node::mul(tokens)?;
         loop {
             if let Ok(_) = tokens.expect_token(TokenKind::Plus) {
@@ -123,16 +158,6 @@ impl Node {
             }
         }
     }
-    fn primary(tokens: &mut impl TokenIterator) -> Result<Self> {
-        if let Ok(_) = tokens.expect_token(TokenKind::LParen) {
-            let node = Node::expr(tokens)?;
-            tokens.expect_token(TokenKind::RParen)?;
-            return Ok(node);
-        } else {
-            let node = Node::new_num(tokens.expect_number()?);
-            return Ok(node);
-        }
-    }
     fn unary(tokens: &mut impl TokenIterator) -> Result<Self> {
         if let Ok(_) = tokens.expect_token(TokenKind::Plus) {
             return Node::primary(tokens);
@@ -144,6 +169,16 @@ impl Node {
             ));
         } else {
             return Node::primary(tokens);
+        }
+    }
+    fn primary(tokens: &mut impl TokenIterator) -> Result<Self> {
+        if let Ok(_) = tokens.expect_token(TokenKind::LParen) {
+            let node = Node::expr(tokens)?;
+            tokens.expect_token(TokenKind::RParen)?;
+            return Ok(node);
+        } else {
+            let node = Node::new_num(tokens.expect_number()?);
+            return Ok(node);
         }
     }
 }

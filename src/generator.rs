@@ -18,10 +18,27 @@ fn gen(node: &Node, asm: &mut String) {
         Sub => asm.push_str("  sub rax, rdi\n"),
         Mul => asm.push_str("  imul rax, rdi\n"),
         Div => asm.push_str("  cqo\n  idiv rdi\n"),
-        Num(_) => {}
+        Eq | Neq | Lt | Leq => asm.push_str(&cmp(&node.kind)),
+        Num(_) => panic!(),
     }
 
     asm.push_str("  push rax\n")
+}
+
+fn cmp(node_kind: &NodeKind) -> String {
+    use NodeKind::*;
+    let mut asm = String::from("  cmp rax, rdi\n");
+    asm.push_str("  ");
+    asm.push_str(match node_kind {
+        Eq => "sete",
+        Neq => "setne",
+        Lt => "setl",
+        Leq => "setle",
+        _ => panic!(),
+    });
+    asm.push_str(" al\n");
+    asm.push_str("  movzb rax, al\n");
+    asm
 }
 
 pub fn generate(ast: &Node) -> String {

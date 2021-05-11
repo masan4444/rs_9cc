@@ -18,7 +18,9 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
 fn run(s: &str) -> std::result::Result<String, Error> {
     let tokens = tokenize(s)?;
+    // println!("{:?}", tokens);
     let ast = parse(tokens.into_iter().peekable())?;
+    // println!("{:?}", ast);
     let asm = generate(&ast);
 
     Ok(asm)

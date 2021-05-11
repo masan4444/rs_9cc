@@ -16,8 +16,16 @@ pub fn tokenize(s: &str) -> std::result::Result<LinkedList<Token>, Error> {
             Ok(b) => match b {
                 b'0'..=b'9' => tokens.push_back(lex_number(&mut input)?),
                 b'+' | b'-' | b'*' | b'/' | b'(' | b')' => {
-                    tokens.push_back(lex_byte(&mut input, b)?)
+                    tokens.push_back(lex_byte(&mut input, &[b])?)
                 }
+                b'=' => tokens.push_back(lex_byte(&mut input, &[b'=', b'='])?),
+                b'!' => tokens.push_back(lex_byte(&mut input, &[b'!', b'='])?),
+                b'<' => tokens.push_back(
+                    lex_byte(&mut input, &[b'<', b'=']).or(lex_byte(&mut input, &[b'<']))?,
+                ),
+                b'>' => tokens.push_back(
+                    lex_byte(&mut input, &[b'>', b'=']).or(lex_byte(&mut input, &[b'>']))?,
+                ),
                 b' ' => input.consume_spaces(),
                 _ => {
                     return Err(Error::new(
@@ -35,9 +43,9 @@ fn lex_number(input: &mut Input) -> Result<Token> {
         .consume_numbers()
         .map(|(pos, n)| Token::new(TokenKind::Number(n), pos..input.pos()))
 }
-fn lex_byte(input: &mut Input, b: u8) -> Result<Token> {
+fn lex_byte(input: &mut Input, b: &[u8]) -> Result<Token> {
     input
-        .consume_byte(b)
+        .consume_bytes(&b)
         .map(|pos| Token::new(b.into(), pos..input.pos()))
 }
 
@@ -94,30 +102,71 @@ struct Input<'a> {
     pos: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum TokenKind {
     Number(u64),
-    Plus,
-    Minus,
-    Asterisk,
-    Slash,
-    LParen,
-    RParen,
+    Plus,     // '+'
+    Minus,    // '-'
+    Asterisk, // '*'
+    Slash,    // '/'
+    LParen,   // '('
+    RParen,   // ')'
+    Lt,       // '<'
+    Leq,      // '<='
+    Gt,       // '>'
+    Geq,      // '>='
+    Eq,       // '=='
+    Neq,      // '!='
     Eof,
 }
 
-impl From<u8> for TokenKind {
-    fn from(value: u8) -> Self {
+impl From<&[u8]> for TokenKind {
+    fn from(value: &[u8]) -> Self {
         use TokenKind::*;
         match value {
-            b'+' => Plus,
-            b'-' => Minus,
-            b'*' => Asterisk,
-            b'/' => Slash,
-            b'(' => LParen,
-            b')' => RParen,
-            _ => Eof,
+            [b'<', b'='] => Leq,
+            [b'>', b'='] => Geq,
+            [b'=', b'='] => Eq,
+            [b'!', b'='] => Neq,
+            [b'<'] => Lt,
+            [b'>'] => Gt,
+
+            [b'+'] => Plus,
+            [b'-'] => Minus,
+            [b'*'] => Asterisk,
+            [b'/'] => Slash,
+            [b'('] => LParen,
+            [b')'] => RParen,
+            _ => panic!(),
         }
+    }
+}
+
+impl Into<String> for TokenKind {
+    fn into(self) -> String {
+        use TokenKind::*;
+        match self {
+            Number(n) => format!("Number({})", n),
+            Plus => "Plus('+')".to_owned(),
+            Minus => "Minus('-')".to_owned(),
+            Asterisk => "Asterisk('*')".to_owned(),
+            Slash => "Slash('/')".to_owned(),
+            LParen => "Lparen('(')".to_owned(),
+            RParen => "Rparen(')')".to_owned(),
+            Lt => "Lt('<')".to_owned(),
+            Leq => "Leq('<=')".to_owned(),
+            Gt => "Gt('>')".to_owned(),
+            Geq => "Geq('>=')".to_owned(),
+            Eq => "Eq('==')".to_owned(),
+            Neq => "Neq('!=')".to_owned(),
+            Eof => "Eof".to_owned(),
+        }
+    }
+}
+
+impl fmt::Debug for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", Into::<String>::into(*self))
     }
 }
 
@@ -158,8 +207,14 @@ impl<'a> Input<'a> {
     fn peek(&self) -> Result<u8> {
         self.s.get(self.pos()).map(|&b| b).ok_or(self.eof())
     }
+    fn peek_nth(&self, n: usize) -> Result<u8> {
+        self.s.get(self.pos() + n).map(|&b| b).ok_or(self.eof())
+    }
     fn inc(&mut self) {
         self.pos += 1
+    }
+    fn inc_nth(&mut self, n: usize) {
+        self.pos += n
     }
     fn pos_then_inc(&mut self) -> usize {
         let pos = self.pos();
@@ -187,6 +242,24 @@ impl<'a> Input<'a> {
                 Ok(self.pos_then_inc())
             }
         })
+    }
+    fn consume_bytes(&mut self, wants: &[u8]) -> Result<usize> {
+        let pos = self.pos();
+        wants
+            .iter()
+            .enumerate()
+            .try_for_each(|(idx, &want)| {
+                self.peek_nth(idx).and_then(|got| {
+                    (got == want).then(|| ()).ok_or(Error::new(
+                        ErrorKind::InvalidChar(got as char),
+                        (pos + idx)..(pos + idx + 1),
+                    ))
+                })
+            })
+            .map(|_| {
+                self.inc_nth(wants.len());
+                pos
+            })
     }
     fn consume_numbers(&mut self) -> Result<(usize, u64)> {
         let start = self.pos();
