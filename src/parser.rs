@@ -10,12 +10,16 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::Eof => write!(f, "Eof"),
+            Error::Eof => write!(f, "Parser Error: end of file reached"),
             Error::UnexpectedToken(token) => {
                 let loc = token.loc();
                 let padd = " ".repeat(loc.start);
                 let allow = "^".repeat(loc.end - loc.start);
-                write!(f, "{}{} unexpected token {:?}", padd, allow, token)
+                write!(
+                    f,
+                    "{}{} Parser Error: unexpected token {:?}",
+                    padd, allow, token
+                )
             }
         }
     }

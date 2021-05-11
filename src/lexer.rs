@@ -83,14 +83,12 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let padd = " ".repeat(self.loc.0);
+        let allow = "^".repeat(self.loc.1 - self.loc.0);
         use ErrorKind::*;
         match self.kind {
-            InvalidChar(c) => {
-                let padd = " ".repeat(self.loc.0);
-                let allow = "^".repeat(self.loc.1 - self.loc.0);
-                write!(f, "{}{} invalid char '{}'", padd, allow, c)
-            }
-            _ => write!(f, "lex error"),
+            InvalidChar(c) => write!(f, "{}{} Lexer Error: invalid char '{}'", padd, allow, c),
+            Eof => write!(f, "{} ^ Lexer Error: end of file reached", padd),
         }
     }
 }
